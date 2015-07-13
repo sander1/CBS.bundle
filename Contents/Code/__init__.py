@@ -50,7 +50,7 @@ def Shows(cat_title, category):
 
 		title = item['title']
 
-		if title in EXCLUDE_SHOWS:
+		if title in EXCLUDE_SHOWS or ' Previews' in title or ' Premieres' in title:
 			continue
 
 		url = item['link']
