@@ -1,28 +1,24 @@
-CATEGORY_CAROUSEL = 'http://www.cbs.com/carousels/showsByCategory/%s/offset/0/limit/99/'
+SHOWS_URL = 'http://www.cbs.com/shows/%s/'
 SECTION_CAROUSEL = 'http://www.cbs.com/carousels/videosBySection/%s/offset/0/limit/15/xs/0'
-CLASSICS_URL = 'http://www.cbs.com/shows/%s/videos_more/season/0/videos/%s/%s'
 CATEGORIES = [
-	{"categoryId":0,"title":"All Current Shows"},
-	{"categoryId":1,"title":"Primetime"},
-	{"categoryId":2,"title":"Daytime"},
-	{"categoryId":3,"title":"Late Night"},
-#	{"categoryId":4,"title":"TV Classics"},
-#	{"categoryId":5,"title":"CBS.com Originals"},
-	{"categoryId":6,"title":"Movies & Specials"}
+	{'category_id': 'primetime', 'title': 'Primetime'},
+	{'category_id': 'daytime', 'title': 'Daytime'},
+	{'category_id': 'late-night', 'title': 'Late Night'}
 ]
 
 RE_S_EP_DURATION = Regex('(S(\d+) Ep(\d+) )?\((\d+:\d+)\)')
 RE_SAFE_TITLE = Regex('/shows/([^/]+)')
 RE_SEASON = Regex('Season ([0-9]+),')
 
-EXCLUDE_SHOWS = ("Live On Letterman", "The CBS Dream Team...It's Epic")
+EXCLUDE_SHOWS = [
+]
 
 ####################################################################################################
 def Start():
 
 	ObjectContainer.title1 = 'CBS'
 	HTTP.CacheTime = CACHE_1HOUR
-	HTTP.Headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:25.0) Gecko/20100101 Firefox/25.0'
+	HTTP.Headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.85 Safari/537.36'
 
 ####################################################################################################
 @handler('/video/cbs', 'CBS')
@@ -31,8 +27,9 @@ def MainMenu():
 	oc = ObjectContainer()
 
 	for category in CATEGORIES:
+
 		oc.add(DirectoryObject(
-			key = Callback(Shows, cat_title=category['title'], category=category['categoryId']),
+			key = Callback(Shows, cat_title=category['title'], category=category['category_id']),
 			title = category['title']))
 
 	return oc
@@ -42,42 +39,28 @@ def MainMenu():
 def Shows(cat_title, category):
 
 	oc = ObjectContainer(title2=cat_title)
+	html = HTML.ElementFromURL(SHOWS_URL % (category))
 
-	for item in JSON.ObjectFromURL(CATEGORY_CAROUSEL % category)['result']['data']:
+	for item in html.xpath('//ul[@id="id-shows-list"]/li//img'):
 
-		if not 'filepath_ipad' in item or not 'filepath_show_logo' in item:
+		title = item.get('title')
+
+		if title in EXCLUDE_SHOWS or 'Previews' in title or 'Premieres' in title:
 			continue
 
-		title = item['title']
-
-		if title in EXCLUDE_SHOWS or ' Previews' in title or ' Premieres' in title:
-			continue
-
-		url = item['link']
+		url = item.xpath('./parent::a/@href')[0]
 		if not url.startswith('http://'):
 			url = 'http://www.cbs.com/%s' % url.lstrip('/')
 		if not url.endswith('/video/'):
 			url = '%s/video/' % url.rstrip('/')
 
-		thumb = item['filepath_ipad']
-		if thumb:
-			if not thumb.startswith('http://'):
-				thumb = 'http://www.cbs.com/%s' % thumb.lstrip('/')
-		else:
-			thumb = 'http://resources-cdn.plexapp.com/image/source/com.plexapp.plugins.cbs.jpg'
+		thumb = item.get('src')
 
-		if cat_title == 'TV Classics':
-			oc.add(DirectoryObject(
-				key = Callback(ClassicCategories, title=title, url=url, thumb=thumb),
-				title = title,
-				thumb = Resource.ContentsOfURLWithFallback(thumb)
-			))
-		else:
-			oc.add(DirectoryObject(
-				key = Callback(Category, title=title, url=url, thumb=thumb),
-				title = title,
-				thumb = Resource.ContentsOfURLWithFallback(thumb)
-			))
+		oc.add(DirectoryObject(
+			key = Callback(Category, title=title, url=url, thumb=thumb),
+			title = title,
+			thumb = Resource.ContentsOfURLWithFallback(thumb)
+		))
 
 	return oc
 
@@ -160,106 +143,4 @@ def Video(title, json_url):
 			))
 
 	oc.objects.sort(key=lambda obj: obj.originally_available_at, reverse=True)
-	return oc
-
-####################################################################################################
-@route('/video/cbs/classiccategories')
-def ClassicCategories(title, url, thumb):
-
-	oc = ObjectContainer(title2=title)
-
-	video_types = [
-		{'title': 'Full Episodes', 'label': 'episodes'},
-		{'title': 'Clips', 'label': 'clips'}
-	]
-
-	for category in video_types:
-		oc.add(DirectoryObject(
-			key = Callback(Classics, title=title, url=url, thumb=thumb, label=category['label']),
-			title = category['title'],
-			thumb = Resource.ContentsOfURLWithFallback(thumb)
-		))
-
-	return oc
-
-####################################################################################################
-@route('/video/cbs/classics')
-def Classics(title, url, thumb, label, offset=0):
-
-	oc = ObjectContainer(title2=title)
-	safe_title = RE_SAFE_TITLE.search(url).group(1)
-	json_url = CLASSICS_URL % (safe_title, label, offset)
-
-	try:
-		json_string = HTTP.Request(json_url).content
-		''' The JSON returned often has un-escaped EOL characters included in the HTML whiich breaks
-			the JSON parsing. So, we try to remove them by splitting the lines and rejoining them (properly).
-			While we're at it, we remove some commenting from the HTML so that we can parse the airdates. '''
-		fixed_json_string = ''.join((json_string).splitlines()).replace('<!--','').replace('-->', '')
-		json_obj = JSON.ObjectFromString(fixed_json_string)
-
-		if json_obj['success']:
-			html = HTML.ElementFromString(json_obj['html'])
-		else:
-			raise e
-	except:
-		return ObjectContainer(header="Empty", message="Can't find video's for this show.")
-
-	for entry in html.xpath('//div[@class="video-content-item"]'):
-		video_url = entry.xpath('.//a')[0].get('href')
-
-		if not video_url.startswith('http://'):
-			video_url = 'http://www.cbs.com/%s' % video_url.lstrip('/')
-
-		video_title = entry.xpath('.//div[@class="video-content-title"]')[0].text
-		video_thumb = entry.xpath('.//div[@class="video-content-thumb-container"]//img')[0].get('src')
-
-		try: summary = entry.xpath('.//div[@class="video-content-description"]')[0].text
-		except: summary = None
-
-		try:
-			duration = entry.xpath('.//div[@class="video-content-duration"]/text()')[0].strip(') (')
-			duration = Datetime.MillisecondsFromString(duration)
-		except:
-			duration = None
-
-		try:
-			airdate = entry.xpath('.//div[@class="video-content-air-date"]/text()')[1].strip(':')
-			airdate = Datetime.ParseDate(airdate).date()
-		except:
-			airdate = None
-
-		if label == 'episodes':
-			season = RE_SEASON.search(entry.xpath('.//div[@class="video-content-season-info"]')[0].text).group(1)
-
-			oc.add(EpisodeObject(
-				url = video_url,
-				title = video_title,
-				summary = summary,
-				duration = duration,
-				originally_available_at = airdate,
-				thumb = Resource.ContentsOfURLWithFallback(video_thumb),
-				season = int(season),
-				show = title
-			))
-		else:
-			oc.add(VideoClipObject(
-				url = video_url,
-				title = video_title,
-				summary = summary,
-				duration = duration,
-				originally_available_at = airdate,
-				thumb = Resource.ContentsOfURLWithFallback(video_thumb)
-			))
-
-	oc.objects.sort(key = lambda obj: obj.originally_available_at)
-
-	if json_obj['more']:
-		offset = json_obj['next']
-
-		oc.add(NextPageObject(
-			key = Callback(Classics, title=title, url=url, thumb=thumb, label=label, offset=offset),
-			title = 'More...'
-		))
-
 	return oc
