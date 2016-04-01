@@ -1,10 +1,14 @@
 SHOWS_URL = 'http://www.cbs.com/shows/%s/'
-SECTION_CAROUSEL = 'http://www.cbs.com/carousels/videosBySection/%s/offset/0/limit/15/xs/0'
+SECTION_CAROUSEL = 'http://www.cbs.com/carousels/videosBySection/%s/offset/0/limit/40/xs/0'
 CATEGORIES = [
     {'category_id': 'primetime', 'title': 'Primetime'},
     {'category_id': 'daytime', 'title': 'Daytime'},
     {'category_id': 'late-night', 'title': 'Late Night'}
 ]
+
+RE_SECTION_IDS = Regex('video.section_ids = \[(.+?)\];')
+RE_SECTION_METADATA = Regex('video.section_metadata = (.+?);')
+RE_SEASONS = Regex('video.seasons = (.+?);', Regex.DOTALL)
 
 EXCLUDE_SHOWS = [
 ]
@@ -66,26 +70,72 @@ def Category(title, url, thumb):
 
     oc = ObjectContainer(title2=title)
 
-    try:
-        html = HTML.ElementFromURL(url)
-    except:
-        return ObjectContainer(header="Empty", message="Can't find video's for this show.")
+    try: content = HTTP.Request(url).content
+    except: return ObjectContainer(header="Empty", message="Can't find video's for this show.")
 
-    for carousel in html.xpath('//div[starts-with(@id, "id-carousel")]/@id'):
-        json_url = SECTION_CAROUSEL % carousel.split('-')[-1]
-        json_obj = JSON.ObjectFromURL(json_url)
-
-        if json_obj['success']:
-            title = json_obj['result']['title']
-
+    try: 
+        carousel_list = RE_SECTION_IDS.search(content).group(1).split(',')
+        carousel_metalist = RE_SECTION_METADATA.search(content).group(1)
+    except: carousel_list = []
+	
+    for carousel in carousel_list:
+        json_url = SECTION_CAROUSEL % carousel
+        # If there are seasons displayed then the json URL for each season must be pulled
+        try: display_seasons = JSON.ObjectFromString(carousel_metalist)[carousel]['display_seasons']
+        except: display_seasons = False
+        if display_seasons:
+            title = JSON.ObjectFromString(carousel_metalist)[carousel]['title']
+            season_list = RE_SEASONS.search(content).group(1)
             oc.add(DirectoryObject(
-                key = Callback(Video, title=title, json_url=json_url),
+                key = Callback(Seasons, title=title, thumb=thumb, json_url=json_url, season_list=season_list),
+                title = title,
+                thumb = Resource.ContentsOfURLWithFallback(thumb)
+            ))
+        else:
+            json_obj = JSON.ObjectFromURL(json_url)
+            if json_obj['success']:
+                title = json_obj['result']['title']
+                oc.add(DirectoryObject(
+                    key = Callback(Video, title=title, json_url=json_url),
+                    title = title,
+                    thumb = Resource.ContentsOfURLWithFallback(thumb)
+                ))
+
+    if len(oc) < 1:
+        Log ('still no value for objects')
+        return ObjectContainer(header="Empty", message="There are no video sections to list right now.")
+    else:
+        return oc
+
+####################################################################################################
+# This function pulls the season numbers for any season that contains free content to add to the json url
+@route('/video/cbs/seasons')
+def Seasons(title, thumb, json_url, season_list):
+
+    oc = ObjectContainer(title2=title)
+
+    try: season_json = JSON.ObjectFromString(season_list)
+    except: return ObjectContainer(header="Empty", message="Can't find video's for this season.")
+    
+    for item in season_json['filter']:
+        # Skip seasons that only offer premium content
+        if item["total_count"] == item["premiumCount"]:
+            continue
+        title = item["title"]
+        season_url = '%s/%s/' %(json_url, item["season"])
+        json_obj = JSON.ObjectFromURL(season_url)
+        if json_obj['success']:
+            oc.add(DirectoryObject(
+                key = Callback(Video, title=title, json_url=season_url),
                 title = title,
                 thumb = Resource.ContentsOfURLWithFallback(thumb)
             ))
 
-    return oc
-
+    if len(oc) < 1:
+        Log ('still no value for objects')
+        return ObjectContainer(header="Empty", message="There are no seasons to list right now.")
+    else:
+        return oc
 ####################################################################################################
 @route('/video/cbs/video')
 def Video(title, json_url):
@@ -139,4 +189,8 @@ def Video(title, json_url):
             ))
 
     oc.objects.sort(key=lambda obj: obj.originally_available_at, reverse=True)
-    return oc
+    if len(oc) < 1:
+        Log ('still no value for objects')
+        return ObjectContainer(header="Empty", message="There are no videos to list right now.")
+    else:
+        return oc
