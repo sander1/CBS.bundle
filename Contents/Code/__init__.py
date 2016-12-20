@@ -68,7 +68,7 @@ def Shows(cat_title, category):
 @route('/video/cbs/category')
 def Category(title, url, thumb):
 
-    oc = ObjectContainer(title2=title)
+    oc = ObjectContainer(title2=unicode(title))
 
     try: content = HTTP.Request(url).content
     except: return ObjectContainer(header="Empty", message="Can't find video's for this show.")
