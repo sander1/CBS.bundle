@@ -1,3 +1,6 @@
+ART = 'art-default.jpg'
+ICON = 'icon-default.jpg'
+
 SHOWS_URL = 'http://www.cbs.com/shows/%s/'
 SECTION_CAROUSEL = 'http://www.cbs.com/carousels/videosBySection/%s/offset/0/limit/40/xs/0'
 CATEGORIES = [
@@ -10,8 +13,7 @@ RE_SECTION_IDS = Regex('video.section_ids = \[(.+?)\];')
 RE_SECTION_METADATA = Regex('video.section_metadata = (.+?);')
 RE_SEASONS = Regex('video.seasons = (.+?);', Regex.DOTALL)
 
-EXCLUDE_SHOWS = [
-]
+EXCLUDE_SHOWS = []
 
 ####################################################################################################
 def Start():
@@ -21,7 +23,7 @@ def Start():
     HTTP.Headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.85 Safari/537.36'
 
 ####################################################################################################
-@handler('/video/cbs', 'CBS')
+@handler('/video/cbs', 'CBS', thumb=ICON, art=ART)
 def MainMenu():
 
     oc = ObjectContainer()
