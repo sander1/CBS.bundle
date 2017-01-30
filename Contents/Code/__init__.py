@@ -9,8 +9,8 @@ CATEGORIES = [
     {'category_id': 'late-night', 'title': 'Late Night'}
 ]
 
-RE_SECTION_IDS = Regex('video.section_ids = \[(.+?)\];')
-RE_SECTION_METADATA = Regex('video.section_metadata = (.+?);')
+RE_SECTION_IDS = Regex('(?:video\.section_ids = |"section_ids"\:)\[([^\]]+)\]')
+RE_SECTION_METADATA = Regex('(?:video.section_metadata = |"section_metadata"\:)({.+?}})')
 RE_SEASONS = Regex('video.seasons = (.+?);', Regex.DOTALL)
 
 EXCLUDE_SHOWS = []
@@ -78,16 +78,24 @@ def Category(title, url, thumb):
     try: 
         carousel_list = RE_SECTION_IDS.search(content).group(1).split(',')
         carousel_metalist = RE_SECTION_METADATA.search(content).group(1)
-    except: carousel_list = []
+    except:
+        carousel_list = []
 	
     for carousel in carousel_list:
+
         json_url = SECTION_CAROUSEL % carousel
+
         # If there are seasons displayed then the json URL for each season must be pulled
-        try: display_seasons = JSON.ObjectFromString(carousel_metalist)[carousel]['display_seasons']
-        except: display_seasons = False
+        try:
+            display_seasons = JSON.ObjectFromString(carousel_metalist)[carousel]['display_seasons']
+        except:
+            display_seasons = False
+
         if display_seasons:
+
             title = JSON.ObjectFromString(carousel_metalist)[carousel]['title']
             season_list = RE_SEASONS.search(content).group(1)
+
             oc.add(DirectoryObject(
                 key = Callback(Seasons, title=title, thumb=thumb, json_url=json_url, season_list=season_list),
                 title = title,
@@ -95,8 +103,11 @@ def Category(title, url, thumb):
             ))
         else:
             json_obj = JSON.ObjectFromURL(json_url)
+
             if json_obj['success']:
+
                 title = json_obj['result']['title']
+
                 oc.add(DirectoryObject(
                     key = Callback(Video, title=title, json_url=json_url),
                     title = title,
