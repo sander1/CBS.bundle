@@ -1,12 +1,13 @@
 ART = 'art-default.jpg'
 ICON = 'icon-default.jpg'
 
-SHOWS_URL = 'http://www.cbs.com/shows/%s/'
+SHOWS_URL = 'http://www.cbs.com/shows/%s'
 SECTION_CAROUSEL = 'http://www.cbs.com/carousels/videosBySection/%s/offset/0/limit/40/xs/0'
 CATEGORIES = [
     {'category_id': 'primetime', 'title': 'Primetime'},
     {'category_id': 'daytime', 'title': 'Daytime'},
-    {'category_id': 'late-night', 'title': 'Late Night'}
+    {'category_id': 'late-night', 'title': 'Late Night'},
+    {'category_id': ' ', 'title': 'All Shows'}
 ]
 
 RE_SECTION_IDS = Regex('(?:video\.section_ids = |"section_ids"\:)\[([^\]]+)\]')
