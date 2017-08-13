@@ -186,7 +186,9 @@ def Video(title, json_url):
 
             (season, episode, duration) = (video['season_number'], video['episode_number'], video['duration'])
             season = int(season) if season is not None and season != '' else None
-            index = int(episode) if episode is not None and episode != '' else None
+            # found an episode value that had two numbers separated by a comma so use try/except instead
+            try: index = int(episode)
+            except: index = 0
             duration = Datetime.MillisecondsFromString(duration) if duration is not None else None
             summary = video['description']
             
