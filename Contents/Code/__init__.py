@@ -19,6 +19,18 @@ EXCLUDE_SHOWS = []
 ####################################################################################################
 def Start():
 
+    try:
+        json_obj = JSON.ObjectFromURL('http://ip-api.com/json', cacheTime=10)
+    except:
+        Log("IP Address Check Failed")
+        json_obj = None
+
+    if json_obj and 'countryCode' in json_obj and json_obj['countryCode'] != 'US':
+        Log("= WARNING ==========================================================================================")
+        Log("  According to your IP address you are not in the United States.")
+        Log("  Due to geo-blocking by the content provider, this channel does not work outside the United States.")
+        Log("====================================================================================================")
+
     ObjectContainer.title1 = 'CBS'
     HTTP.CacheTime = CACHE_1HOUR
     HTTP.Headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.85 Safari/537.36'
