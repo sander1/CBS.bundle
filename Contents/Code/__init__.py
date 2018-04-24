@@ -202,7 +202,7 @@ def Video(title, json_url):
             try: index = int(episode)
             except: index = 0
             duration = Datetime.MillisecondsFromString(duration) if duration is not None else None
-            summary = video['description']
+            summary = video['description'] if 'description' in video else None
             
             oc.add(EpisodeObject(
                 url = url,
