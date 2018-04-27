@@ -1,8 +1,8 @@
 ART = 'art-default.jpg'
 ICON = 'icon-default.jpg'
 
-SHOWS_URL = 'http://www.cbs.com/shows/%s'
-SECTION_CAROUSEL = 'http://www.cbs.com/carousels/videosBySection/%s/offset/0/limit/40/xs/0'
+SHOWS_URL = 'https://www.cbs.com/shows/%s'
+SECTION_CAROUSEL = 'https://www.cbs.com/carousels/videosBySection/%s/offset/0/limit/40/xs/0'
 CATEGORIES = [
     {'category_id': 'primetime', 'title': 'Primetime'},
     {'category_id': 'daytime', 'title': 'Daytime'},
@@ -64,8 +64,8 @@ def Shows(cat_title, category):
             continue
 
         url = item.xpath('./parent::a/@href')[0]
-        if not url.startswith('http://'):
-            url = 'http://www.cbs.com/%s' % url.lstrip('/')
+        if not url.startswith('http'):
+            url = 'https://www.cbs.com/%s' % url.lstrip('/')
         if not url.endswith('/video/'):
             url = '%s/video/' % url.rstrip('/')
 
@@ -183,8 +183,8 @@ def Video(title, json_url):
         airdate = Datetime.ParseDate(video['airdate']).date()
 
         url = video['url']
-        if not url.startswith('http://'):
-            url = 'http://www.cbs.com/%s' % url.lstrip('/')
+        if not url.startswith('http'):
+            url = 'https://www.cbs.com/%s' % url.lstrip('/')
 
         if vid_type == 'Clip':
             oc.add(VideoClipObject(
