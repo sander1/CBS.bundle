@@ -1,8 +1,8 @@
 ART = 'art-default.jpg'
 ICON = 'icon-default.jpg'
 
-SHOWS_URL = 'https://www.cbs.com/shows/%s'
-SECTION_CAROUSEL = 'https://www.cbs.com/carousels/videosBySection/%s/offset/0/limit/40/xs/0'
+SHOWS_URL = 'https://www.cbs.com/shows/{}'
+SECTION_CAROUSEL = 'https://www.cbs.com/carousels/videosBySection/{}/offset/0/limit/40/xs/0'
 CATEGORIES = [
     {'category_id': 'primetime', 'title': 'Primetime'},
     {'category_id': 'daytime', 'title': 'Daytime'},
@@ -11,8 +11,8 @@ CATEGORIES = [
 ]
 
 RE_SECTION_IDS = Regex('(?:video\.section_ids = |"section_ids"\:)\[([^\]]+)\]')
-RE_SECTION_METADATA = Regex('(?:video.section_metadata = |"section_metadata"\:)({.+?}})')
-RE_SEASONS = Regex('video.seasons = (.+?);', Regex.DOTALL)
+RE_SECTION_METADATA = Regex('(?:video\.section_metadata = |"section_metadata"\:)({.+?}})')
+RE_SEASONS = Regex('video\.seasons = (.+?);', Regex.DOTALL)
 
 EXCLUDE_SHOWS = []
 
@@ -45,7 +45,8 @@ def MainMenu():
 
         oc.add(DirectoryObject(
             key = Callback(Shows, cat_title=category['title'], category=category['category_id']),
-            title = category['title']))
+            title = category['title']
+        ))
 
     return oc
 
@@ -54,7 +55,7 @@ def MainMenu():
 def Shows(cat_title, category):
 
     oc = ObjectContainer(title2=cat_title)
-    html = HTML.ElementFromURL(SHOWS_URL % (category))
+    html = HTML.ElementFromURL(SHOWS_URL.format(category))
 
     for item in html.xpath('//ul[@id="id-shows-list"]/li//img'):
 
@@ -64,10 +65,12 @@ def Shows(cat_title, category):
             continue
 
         url = item.xpath('./parent::a/@href')[0]
+
         if not url.startswith('http'):
-            url = 'https://www.cbs.com/%s' % url.lstrip('/')
+            url = 'https://www.cbs.com/{}'.format(url.lstrip('/'))
+
         if not url.endswith('/video/'):
-            url = '%s/video/' % url.rstrip('/')
+            url = '{}/video/'.format(url.rstrip('/'))
 
         thumb = item.get('src')
 
@@ -85,18 +88,20 @@ def Category(title, url, thumb):
 
     oc = ObjectContainer(title2=unicode(title))
 
-    try: content = HTTP.Request(url).content
-    except: return ObjectContainer(header="Empty", message="Can't find video's for this show.")
+    try:
+        content = HTTP.Request(url).content
+    except:
+        return ObjectContainer(header="Empty", message="Can't find videos for this show.")
 
-    try: 
+    try:
         carousel_list = RE_SECTION_IDS.search(content).group(1).split(',')
         carousel_metalist = RE_SECTION_METADATA.search(content).group(1)
     except:
         carousel_list = []
-	
+
     for carousel in carousel_list:
 
-        json_url = SECTION_CAROUSEL % carousel
+        json_url = SECTION_CAROUSEL.format(carousel)
 
         # If there are seasons displayed then the json URL for each season must be pulled
         try:
@@ -128,7 +133,7 @@ def Category(title, url, thumb):
                 ))
 
     if len(oc) < 1:
-        Log ('still no value for objects')
+        Log("There are no video sections to list right now.")
         return ObjectContainer(header="Empty", message="There are no video sections to list right now.")
     else:
         return oc
@@ -140,17 +145,24 @@ def Seasons(title, thumb, json_url, season_list):
 
     oc = ObjectContainer(title2=title)
 
-    try: season_json = JSON.ObjectFromString(season_list)
-    except: return ObjectContainer(header="Empty", message="Can't find video's for this season.")
-    
+    try:
+        season_json = JSON.ObjectFromString(season_list)
+    except:
+        return ObjectContainer(header="Empty", message="Can't find video's for this season.")
+
     for item in season_json['filter']:
+
         # Skip seasons that only offer premium content
-        if item["total_count"] == item["premiumCount"]:
+        if item['total_count'] == item['premiumCount']:
             continue
-        title = item["title"]
-        season_url = '%s/%s/' %(json_url, item["season"])
+
+        title = item['title']
+        season_url = '{}/{}/'.format(json_url, item['season'])
+
         json_obj = JSON.ObjectFromURL(season_url)
+
         if json_obj['success']:
+
             oc.add(DirectoryObject(
                 key = Callback(Video, title=title, json_url=season_url),
                 title = title,
@@ -158,10 +170,11 @@ def Seasons(title, thumb, json_url, season_list):
             ))
 
     if len(oc) < 1:
-        Log ('still no value for objects')
+        Log("There are no seasons to list right now.")
         return ObjectContainer(header="Empty", message="There are no seasons to list right now.")
     else:
         return oc
+
 ####################################################################################################
 @route('/video/cbs/video')
 def Video(title, json_url):
@@ -184,26 +197,33 @@ def Video(title, json_url):
 
         url = video['url']
         if not url.startswith('http'):
-            url = 'https://www.cbs.com/%s' % url.lstrip('/')
+            url = 'https://www.cbs.com/{}'.format(url.lstrip('/'))
 
         if vid_type == 'Clip':
+
             oc.add(VideoClipObject(
                 url = url,
                 title = title,
                 originally_available_at = airdate,
                 thumb = Resource.ContentsOfURLWithFallback(thumb)
             ))
+
         elif vid_type == 'Full Episode':
+
             show = video['series_title']
 
             (season, episode, duration) = (video['season_number'], video['episode_number'], video['duration'])
             season = int(season) if season is not None and season != '' else None
-            # found an episode value that had two numbers separated by a comma so use try/except instead
-            try: index = int(episode)
-            except: index = 0
+
+            # Found an episode value that had two numbers separated by a comma so use try/except instead
+            try:
+                index = int(episode)
+            except:
+                index = 0
+
             duration = Datetime.MillisecondsFromString(duration) if duration is not None else None
             summary = video['description'] if 'description' in video else None
-            
+
             oc.add(EpisodeObject(
                 url = url,
                 show = show,
@@ -217,8 +237,9 @@ def Video(title, json_url):
             ))
 
     oc.objects.sort(key=lambda obj: obj.originally_available_at, reverse=True)
+
     if len(oc) < 1:
-        Log ('still no value for objects')
+        Log("There are no videos to list right now.")
         return ObjectContainer(header="Empty", message="There are no videos to list right now.")
     else:
         return oc
