@@ -4,10 +4,15 @@ ICON = 'icon-default.jpg'
 SHOWS_URL = 'https://www.cbs.com/shows/{}'
 SECTION_CAROUSEL = 'https://www.cbs.com/carousels/videosBySection/{}/offset/0/limit/40/xs/0'
 CATEGORIES = [
+    {'category_id': 'originals', 'title': 'Originals'},
+    {'category_id': 'drama', 'title': 'Drama'},
+    {'category_id': 'comedy', 'title': 'Comedy'},
+    {'category_id': 'reality', 'title': 'Reality'},
     {'category_id': 'primetime', 'title': 'Primetime'},
-    {'category_id': 'daytime', 'title': 'Daytime'},
     {'category_id': 'late-night', 'title': 'Late Night'},
-    {'category_id': ' ', 'title': 'All Shows'}
+    {'category_id': 'daytime', 'title': 'Daytime'},
+    {'category_id': 'classics', 'title': 'Classics'},
+    {'category_id': 'news', 'title': 'News'}
 ]
 
 RE_SECTION_IDS = Regex('(?:video\.section_ids = |"section_ids"\:)\[([^\]]+)\]')
@@ -44,7 +49,7 @@ def MainMenu():
     for category in CATEGORIES:
 
         oc.add(DirectoryObject(
-            key = Callback(Shows, cat_title=category['title'], category=category['category_id']),
+            key = Callback(Shows, cat_title=category['title'], cat_id=category['category_id']),
             title = category['title']
         ))
 
@@ -52,16 +57,16 @@ def MainMenu():
 
 ####################################################################################################
 @route('/video/cbs/shows')
-def Shows(cat_title, category):
+def Shows(cat_title, cat_id):
 
     oc = ObjectContainer(title2=cat_title)
-    html = HTML.ElementFromURL(SHOWS_URL.format(category))
+    html = HTML.ElementFromURL(SHOWS_URL.format(cat_id))
 
     for item in html.xpath('//ul[@id="id-shows-list"]/li//img'):
 
         title = item.get('title')
 
-        if title in EXCLUDE_SHOWS or 'Previews' in title or 'Premieres' in title:
+        if title.lower() in EXCLUDE_SHOWS or 'previews' in title.lower() or 'premieres' in title.lower():
             continue
 
         url = item.xpath('./parent::a/@href')[0]
@@ -77,7 +82,7 @@ def Shows(cat_title, category):
         oc.add(DirectoryObject(
             key = Callback(Category, title=title, url=url, thumb=thumb),
             title = title,
-            thumb = Resource.ContentsOfURLWithFallback(thumb)
+            thumb = thumb
         ))
 
     return oc
@@ -101,23 +106,27 @@ def Category(title, url, thumb):
 
     for carousel in carousel_list:
 
+        json_obj = JSON.ObjectFromString(carousel_metalist)[carousel]
         json_url = SECTION_CAROUSEL.format(carousel)
+
+        if 'all access' in json_obj['title'].lower():
+            continue
 
         # If there are seasons displayed then the json URL for each season must be pulled
         try:
-            display_seasons = JSON.ObjectFromString(carousel_metalist)[carousel]['display_seasons']
+            display_seasons = json_obj['display_seasons']
         except:
             display_seasons = False
 
         if display_seasons:
 
-            title = JSON.ObjectFromString(carousel_metalist)[carousel]['title']
+            title = json_obj['title']
             season_list = RE_SEASONS.search(content).group(1)
 
             oc.add(DirectoryObject(
                 key = Callback(Seasons, title=title, thumb=thumb, json_url=json_url, season_list=season_list),
                 title = title,
-                thumb = Resource.ContentsOfURLWithFallback(thumb)
+                thumb = thumb
             ))
         else:
             json_obj = JSON.ObjectFromURL(json_url)
@@ -129,7 +138,7 @@ def Category(title, url, thumb):
                 oc.add(DirectoryObject(
                     key = Callback(Video, title=title, json_url=json_url),
                     title = title,
-                    thumb = Resource.ContentsOfURLWithFallback(thumb)
+                    thumb = thumb
                 ))
 
     if len(oc) < 1:
@@ -166,7 +175,7 @@ def Seasons(title, thumb, json_url, season_list):
             oc.add(DirectoryObject(
                 key = Callback(Video, title=title, json_url=season_url),
                 title = title,
-                thumb = Resource.ContentsOfURLWithFallback(thumb)
+                thumb = thumb
             ))
 
     if len(oc) < 1:
@@ -205,7 +214,7 @@ def Video(title, json_url):
                 url = url,
                 title = title,
                 originally_available_at = airdate,
-                thumb = Resource.ContentsOfURLWithFallback(thumb)
+                thumb = thumb
             ))
 
         elif vid_type == 'Full Episode':
@@ -233,7 +242,7 @@ def Video(title, json_url):
                 season = season,
                 index = index,
                 duration = duration,
-                thumb = Resource.ContentsOfURLWithFallback(thumb)
+                thumb = thumb
             ))
 
     oc.objects.sort(key=lambda obj: obj.originally_available_at, reverse=True)
