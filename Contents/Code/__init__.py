@@ -107,10 +107,11 @@ def Category(title, url, thumb):
     for carousel in carousel_list:
 
         json_obj = JSON.ObjectFromString(carousel_metalist)[carousel]
-        json_url = SECTION_CAROUSEL.format(carousel)
 
-        if 'all access' in json_obj['title'].lower():
+        if 'all access' in json_obj['title'].lower() or json_obj['title'].lower() == 'free full episodes':
             continue
+
+        json_url = SECTION_CAROUSEL.format(carousel)
 
         # If there are seasons displayed then the json URL for each season must be pulled
         try:
@@ -120,26 +121,51 @@ def Category(title, url, thumb):
 
         if display_seasons:
 
-            title = json_obj['title']
-            season_list = RE_SEASONS.search(content).group(1)
+            season_list = RE_SEASONS.search(content)
 
-            oc.add(DirectoryObject(
-                key = Callback(Seasons, title=title, thumb=thumb, json_url=json_url, season_list=season_list),
-                title = title,
-                thumb = thumb
-            ))
+            if not season_list:
+                continue
+
+            season_json = JSON.ObjectFromString(season_list.group(1))
+
+            for item in season_json['filter']:
+
+                # Check if there are seasons that have free content
+                if item['total_count'] == item['premiumCount']:
+                    continue
+                else:
+                    title = json_obj['title']
+
+                    oc.add(DirectoryObject(
+                        key = Callback(Seasons, title=title, thumb=thumb, json_url=json_url, season_list=season_list.group(1)),
+                        title = title,
+                        thumb = thumb
+                    ))
+
+                    break
         else:
+
             json_obj = JSON.ObjectFromURL(json_url)
 
             if json_obj['success']:
 
-                title = json_obj['result']['title']
+                # Check for at least 1 available video before adding this section
+                for video in json_obj['result']['data']:
 
-                oc.add(DirectoryObject(
-                    key = Callback(Video, title=title, json_url=json_url),
-                    title = title,
-                    thumb = thumb
-                ))
+                    if 'status' in video and video['status'].lower() == 'available':
+
+                        title = json_obj['result']['title']
+
+                        oc.add(DirectoryObject(
+                            key = Callback(Video, title=title, json_url=json_url),
+                            title = title,
+                            thumb = thumb
+                        ))
+
+                        break
+
+                    else:
+                        continue
 
     if len(oc) < 1:
         Log("There are no video sections to list right now.")
@@ -157,7 +183,7 @@ def Seasons(title, thumb, json_url, season_list):
     try:
         season_json = JSON.ObjectFromString(season_list)
     except:
-        return ObjectContainer(header="Empty", message="Can't find video's for this season.")
+        return ObjectContainer(header="Empty", message="Can't find videos for this season.")
 
     for item in season_json['filter']:
 
@@ -192,7 +218,7 @@ def Video(title, json_url):
 
     for video in JSON.ObjectFromURL(json_url)['result']['data']:
 
-        if 'status' in video and video['status'].lower() != 'available':
+        if not 'status' in video or video['status'].lower() != 'available':
             continue
 
         title = video['title'].split(' - ', 1)[-1]
@@ -228,7 +254,7 @@ def Video(title, json_url):
             try:
                 index = int(episode)
             except:
-                index = 0
+                index = None
 
             duration = Datetime.MillisecondsFromString(duration) if duration is not None else None
             summary = video['description'] if 'description' in video else None
@@ -236,7 +262,7 @@ def Video(title, json_url):
             oc.add(EpisodeObject(
                 url = url,
                 show = show,
-                title = title,
+                title = "S{}E{} - {}".format(str(season).zfill(2), str(index).zfill(2), title) if season and index else title,
                 summary = summary,
                 originally_available_at = airdate,
                 season = season,
