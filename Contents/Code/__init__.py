@@ -21,6 +21,8 @@ RE_SEASONS = Regex('video\.seasons = (.+?);', Regex.DOTALL)
 
 EXCLUDE_SHOWS = []
 
+PREFIX = '/video/cbs'
+
 ####################################################################################################
 def Start():
 
@@ -41,7 +43,7 @@ def Start():
     HTTP.Headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.85 Safari/537.36'
 
 ####################################################################################################
-@handler('/video/cbs', 'CBS', thumb=ICON, art=ART)
+@handler(PREFIX, 'CBS', thumb=ICON, art=ART)
 def MainMenu():
 
     oc = ObjectContainer()
@@ -56,20 +58,20 @@ def MainMenu():
     return oc
 
 ####################################################################################################
-@route('/video/cbs/shows')
+@route(PREFIX + '/shows')
 def Shows(cat_title, cat_id):
 
     oc = ObjectContainer(title2=cat_title)
     html = HTML.ElementFromURL(SHOWS_URL.format(cat_id))
 
-    for item in html.xpath('//ul[@id="id-shows-list"]/li//img'):
+    for item in html.xpath('//article[@class="show-browse-item"]//img'):
 
-        title = item.get('title')
+        title = item.get('alt')
 
         if title.lower() in EXCLUDE_SHOWS or 'previews' in title.lower() or 'premieres' in title.lower():
             continue
 
-        url = item.xpath('./parent::a/@href')[0]
+        url = item.xpath('./parent::div/parent::a/@href')[0]
 
         if not url.startswith('http'):
             url = 'https://www.cbs.com/{}'.format(url.lstrip('/'))
@@ -77,7 +79,7 @@ def Shows(cat_title, cat_id):
         if not url.endswith('/video/'):
             url = '{}/video/'.format(url.rstrip('/'))
 
-        thumb = item.get('src')
+        thumb = item.get('data-src')
 
         oc.add(DirectoryObject(
             key = Callback(Category, title=title, url=url, thumb=thumb),
@@ -88,7 +90,7 @@ def Shows(cat_title, cat_id):
     return oc
 
 ####################################################################################################
-@route('/video/cbs/category')
+@route(PREFIX + '/category')
 def Category(title, url, thumb):
 
     oc = ObjectContainer(title2=unicode(title))
@@ -175,7 +177,7 @@ def Category(title, url, thumb):
 
 ####################################################################################################
 # This function pulls the season numbers for any season that contains free content to add to the json url
-@route('/video/cbs/seasons')
+@route(PREFIX + '/seasons')
 def Seasons(title, thumb, json_url, season_list):
 
     oc = ObjectContainer(title2=title)
@@ -211,7 +213,7 @@ def Seasons(title, thumb, json_url, season_list):
         return oc
 
 ####################################################################################################
-@route('/video/cbs/video')
+@route(PREFIX + '/video')
 def Video(title, json_url):
 
     oc = ObjectContainer(title2=title)
