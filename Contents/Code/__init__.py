@@ -9,7 +9,7 @@ HTTP_HEADERS = {
 }
 
 SHOWS_URL = 'https://www.cbs.com/shows/{}'
-EPISODES_JSON_URL = 'https://www.cbs.com/shows/{}/video/xhr/episodes/page/0/size/50/xs/0/season/'
+EPISODES_JSON_URL = 'https://www.cbs.com/shows/{}/xhr/episodes/page/0/size/50/xs/0/season/'
 TP_VIDEO_URL = 'http://link.theplatform.com/s/dJ5BDC/media/guid/2198311517/{}?mbr=true&assetTypes=StreamPack&formats=MPEG4,M3U'
 
 CATEGORIES = [
@@ -187,5 +187,6 @@ def GetData(url):
     req = urllib2.Request(url, headers=HTTP_HEADERS)
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
     data = urllib2.urlopen(req, context=ssl_context).read()
+    Log("Requesting '{}'".format(url))
 
     return data
