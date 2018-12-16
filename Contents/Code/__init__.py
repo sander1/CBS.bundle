@@ -181,12 +181,13 @@ def PlayVideo(content_id, **kwargs):
 @route(PREFIX + '/getdata')
 def GetData(url):
 
+    Log("Requesting '{}'".format(url))
+
     # Quick and dirty workaround
     # Do not validate ssl certificate
     # http://stackoverflow.com/questions/27835619/ssl-certificate-verify-failed-error
     req = urllib2.Request(url, headers=HTTP_HEADERS)
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
     data = urllib2.urlopen(req, context=ssl_context).read()
-    Log("Requesting '{}'".format(url))
 
     return data
