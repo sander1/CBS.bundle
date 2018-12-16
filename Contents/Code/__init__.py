@@ -75,7 +75,7 @@ def Shows(cat_title, cat_id):
         if title.lower() in EXCLUDE_SHOWS or 'previews' in title.lower() or 'premieres' in title.lower():
             continue
 
-        slug = item.xpath('./parent::div/parent::a/@href')[0].rstrip('/').split('/')[-1]
+        slug = item.xpath('./parent::div/parent::a/@href')[0].split('shows/')[-1].split('/')[0]
         thumb = item.get('data-src')
 
         oc.add(DirectoryObject(
@@ -117,8 +117,8 @@ def Episodes(title, slug):
             oc.add(CreateEpisodeObject(content_id=content_id))
 
     if len(oc) < 1:
-        Log("There aren't any episodes available for this show.")
-        return ObjectContainer(header="None Available", message="There aren't any episodes available for this show.")
+        Log("There aren't any episodes available for {}.".format(title))
+        return ObjectContainer(header="None Available", message="There aren't any episodes available for {}.".format(title))
     else:
         return oc
 
