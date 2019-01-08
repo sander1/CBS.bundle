@@ -117,8 +117,8 @@ def Episodes(title, slug):
             oc.add(CreateEpisodeObject(content_id=content_id))
 
     if len(oc) < 1:
-        Log("There aren't any episodes available for {}.".format(title))
-        return ObjectContainer(header="None Available", message="There aren't any episodes available for {}.".format(title))
+        Log("There aren't any free full episodes available for {}.".format(title))
+        return ObjectContainer(header="None Available", message="There aren't any free full episodes available for {}.".format(title))
     else:
         return oc
 
