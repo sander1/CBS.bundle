@@ -9,7 +9,7 @@ HTTP_HEADERS = {
 }
 
 SHOWS_URL = 'https://www.cbs.com/shows/{}'
-EPISODES_JSON_URL = 'https://www.cbs.com/shows/{}/xhr/episodes/page/0/size/50/xs/0/season/'
+EPISODES_JSON_URL = 'https://md.plex.dance/cbs/shows/{}'
 TP_VIDEO_URL = 'http://link.theplatform.com/s/dJ5BDC/media/guid/2198311517/{}?mbr=true&assetTypes=StreamPack&formats=MPEG4,M3U'
 
 CATEGORIES = [
@@ -93,28 +93,23 @@ def Episodes(title, slug):
     oc = ObjectContainer(title2=unicode(title))
     json_obj = JSON.ObjectFromString(GetData(EPISODES_JSON_URL.format(slug)))
 
-    if 'result' in json_obj and 'data' in json_obj['result']:
+    for video in json_obj:
 
-        for video in json_obj['result']['data']:
+        content_id = video['content_id']
 
-            if video['type'] != "Full Episode" or video['status'] != "AVAILABLE":
-                continue
+        if content_id not in Dict['episodes']:
 
-            content_id = video['content_id']
+            Dict['episodes'][content_id] = {
+                'show': video['series_title'],
+                'title': video['episode_title'],
+                'originally_available_at': Datetime.ParseDate(video['airdate']).date(),
+                'season': video['season_number'],
+                'index': video['episode_number'],
+                'duration': video['duration'] * 1000,
+                'thumb': video['thumb']
+            }
 
-            if content_id not in Dict['episodes']:
-
-                Dict['episodes'][content_id] = {
-                    'show': video['series_title'],
-                    'title': video['episode_title'],
-                    'originally_available_at': Datetime.ParseDate(video['airdate']).date(),
-                    'season': video['season_number'],
-                    'index': video['episode_number'],
-                    'duration': video['duration_raw'] * 1000,
-                    'thumb': video['thumb']['large']
-                }
-
-            oc.add(CreateEpisodeObject(content_id=content_id))
+        oc.add(CreateEpisodeObject(content_id=content_id))
 
     if len(oc) < 1:
         Log("There aren't any free full episodes available for {}.".format(title))
