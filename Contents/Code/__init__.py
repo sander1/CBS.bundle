@@ -91,7 +91,8 @@ def Shows(cat_title, cat_id):
 def Episodes(title, slug):
 
     oc = ObjectContainer(title2=unicode(title))
-    json_obj = JSON.ObjectFromString(GetData(EPISODES_JSON_URL.format(slug)))
+    plex_client = Client.Platform if Client.Platform is not None else '-'
+    json_obj = JSON.ObjectFromString(GetData(EPISODES_JSON_URL.format(slug), {'User-Agent': plex_client}))
 
     for video in json_obj:
 
@@ -174,15 +175,15 @@ def PlayVideo(content_id, **kwargs):
 
 ####################################################################################################
 @route(PREFIX + '/getdata')
-def GetData(url):
+def GetData(url, headers=HTTP_HEADERS):
 
     Log("Requesting '{}'".format(url))
 
     # Quick and dirty workaround
     # Do not validate ssl certificate
     # http://stackoverflow.com/questions/27835619/ssl-certificate-verify-failed-error
-    req = urllib2.Request(url, headers=HTTP_HEADERS)
-    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+    req = urllib2.Request(url, headers=headers)
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
     data = urllib2.urlopen(req, context=ssl_context).read()
 
     return data
